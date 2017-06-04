@@ -33,6 +33,7 @@ class Graph(object):
         self.E = [] # Edge set
         self.headNodes = [] #head node index
         self.oracle = [] # oracle transitions for this sent
+        self.gold_feature = [] # gold features for this sent
         self.V.append(Node(0, 'root', 'root', 'root', True))
         self.headNodes.append(0)
         self.table = []

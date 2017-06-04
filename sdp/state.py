@@ -56,31 +56,38 @@ class Configuration(object):
         self.buffer.clear()
         self.arcs.clear()
 
+    def isTerminated(self):
+        return self.buffer.isEmpty()
+
     def doAction(self, action):
         if action == 'SHIFT':
-            node = self.buffer.pop_front()
-            self.stack.push(node)
+            if not self.buffer.isEmpty():
+                node = self.buffer.pop_front()
+                self.stack.push(node)
         elif action == 'REDUCE':
-            self.stack.pop()
+            if not self.stack.isEmpty():
+                self.stack.pop()
         elif action == 'SWAP':
             node_j = self.stack.pop()
             node_i = self.stack.pop()
             self.buffer.push_front(node_i)
             self.stack.push(node_j)
         elif action == 'MEM':
-            node = self.stack.pop()
-            self.memory.push(node)
+            if not self.stack.isEmpty():
+                node = self.stack.pop()
+                self.memory.push(node)
         elif action == 'RECALL':
-            node = self.memory.pop()
-            self.stack.push(node)
-            pass
+            if not self.memory.isEmpty():
+                node = self.memory.pop()
+                self.stack.push(node)
         elif action[:3] == 'ARC':
             action = action.split('-')
             label = action[1]
             next_action = action[2]
-            top = self.stack.top()
-            front = self.buffer.front()
-            self.arcs.append(Edge(top, front, label))
+            if not self.stack.isEmpty() and not self.buffer.isEmpty():
+                top = self.stack.top()
+                front = self.buffer.front()
+                self.arcs.append(Edge(top, front, label))
             self.doAction(next_action)
 
     def extractOracle(self, graph):
@@ -152,7 +159,7 @@ class Configuration(object):
                     return True
         return False
 
-    def extractFeature(self, graph):
+    def extractFeature(self, graph, action):
         features = []
         top = None
         front = None
@@ -186,6 +193,7 @@ class Configuration(object):
         if mTop is not None and front is not None:
             features += self.pair('M', mTop, 'N0', front)
 
+        features = [f + '&' + action for f in features]
         return features
 
     def leftmostParent(self, node):

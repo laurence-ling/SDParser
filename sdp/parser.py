@@ -1,9 +1,12 @@
-from .state import *
+from .perceptron import *
 import codecs
+import random
+import time
 
 class SemDepParser(object):
     def __init__(self):
         self.train_set = []
+        self.test_set = []
         self.label_set = set()
         self.transition_set = []
         self.feature_set = set()
@@ -15,27 +18,50 @@ class SemDepParser(object):
             self.transition_set.append('ARC-' + label + '-REDUCE')
             self.transition_set.append('ARC-' + label + '-MEM')
             self.transition_set.append('ARC-' + label + '-RECALL')
+        self.classifier = Perceptron(self.transition_set)
 
-    def train(self):
+    def preprocess(self):
         readFile(self.train_set, self.label_set)
+        self.loadSet()
+        length = 0
         for graph in self.train_set:
+            #print(graph.rowNum)
             config = Configuration(graph.V)
             graph.oracle = config.extractOracle(graph)
+            length = max(length,len(graph.oracle))
+            if graph.oracle[0] != 'SHIFT': # the first oracle is always SHIFT
+                print('not shift')
             #if graph.rowNum == '#20015004':
-            print(graph.rowNum)
             #print(graph.oracle)
+        print('maximal oracle length', length)
 
         for graph in self.train_set:
             config = Configuration(graph.V)
             config.doAction(graph.oracle[0])
-            if graph.oracle[0] != 'SHIFT':
-                print('not shift', graph.rowNum)
             for action in graph.oracle[1:]:
-                feature = config.extractFeature(graph)
+                feature = config.extractFeature(graph, action)
                 for f in feature:
                     self.feature_set.add(f)
+                graph.gold_feature.append((action, feature))
                 config.doAction(action)
         print('feature set', len(self.feature_set))
+
+    def train(self):
+        t1 = time.time()
+        for T in range(1):
+            random.shuffle(self.train_set)
+            for graph in self.train_set[:100]:
+                print(graph.rowNum)
+                self.classifier.train(graph)
+            self.classifier.store()
+        t2 = time.time()
+        print('training finished in %f s' % (t2 - t1))
+
+    def parse(self):
+        self.classifier.load()
+        self.test_set = self.train_set[:2]
+        for graph in self.test_set:
+            self.classifier.predict(graph)
 
 
 def readFile(train_set, label_set):
