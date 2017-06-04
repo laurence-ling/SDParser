@@ -8,12 +8,12 @@ class Perceptron(object):
         self.weight = {}
         self.action_set = _set
 
-    def store(self):
-        f = open('weight', 'wb')
+    def store(self, T):
+        f = open('weight' + str(T), 'wb')
         pickle.dump(self.weight, f)
 
-    def load(self):
-        f = open('weight', 'rb')
+    def load(self, T):
+        f = open('weight' + str(T), 'rb')
         self.weight = pickle.load(f)
 
     def train(self, graph):
@@ -25,8 +25,8 @@ class Perceptron(object):
     def predict(self, graph):
         self.state = 'P'
         item = self.beamSearch(graph)
-        graph.E = item.config.arcs
-        graph.oracle = item.action_list
+        graph.p_E = item.config.arcs
+        graph.p_oracle = item.action_list
 
     def getScore(self, feature):
         score = 0
@@ -53,10 +53,21 @@ class Perceptron(object):
     def canEarlyUpdate(self):
         return False
 
+    def legalAction(self, config):
+        legal = self.action_set
+        if config.stack.isEmpty():
+            temp = [x for x in self.action_set
+                    if 'REDUCE' in x or 'ARC' in x or 'MEM' in x]
+            legal = legal.difference(set(temp))
+        if config.memory.isEmpty():
+            temp = [x for x in self.action_set if 'RECALL' in x]
+            legal = legal.difference(set(temp))
+        return legal
+
     def beamSearch(self, graph):
         agenda = [Item(graph)]
         terminate = []
-        B = 8
+        B = 4
         depth = 186 # maximal searching depth
         if self.state == 'T':
             depth = len(graph.oracle)
@@ -67,12 +78,13 @@ class Perceptron(object):
                     terminate.append(item)
                     continue
                 candidates = []
-                for action in self.action_set:
+                legal_action = self.legalAction(item.config)
+                for action in legal_action:
                     feature = item.config.extractFeature(graph, action)
                     score = self.getScore(feature)
                     candidates.append((score, action, feature))
                 random.shuffle(candidates)
-                candidates = sorted(candidates, key=lambda x: x[0])[:B]
+                candidates = sorted(candidates, key=lambda x: x[0], reverse=True)[:B]
                 for c in candidates:
                     new_item = copy.deepcopy(item)
                     new_item.add(c[0], c[1], c[2])
@@ -85,7 +97,7 @@ class Perceptron(object):
                 break
             new_agenda += terminate # also consider terminated ones
             random.shuffle(new_agenda)
-            agenda = sorted(new_agenda, key=lambda x: x.score)[:B]
+            agenda = sorted(new_agenda, key=lambda x: x.score, reverse=True)[:B]
             # perform early update
             if self.state == 'T' and self.canEarlyUpdate():
                 item = max(agenda, key=lambda x: x.score)

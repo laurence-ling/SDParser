@@ -48,20 +48,23 @@ class SemDepParser(object):
 
     def train(self):
         t1 = time.time()
-        for T in range(1):
+        for T in range(3):
             random.shuffle(self.train_set)
-            for graph in self.train_set[:100]:
+            for graph in self.train_set[:1000]:
                 print(graph.rowNum)
                 self.classifier.train(graph)
-            self.classifier.store()
+            self.classifier.store(T)
         t2 = time.time()
         print('training finished in %f s' % (t2 - t1))
 
     def parse(self):
-        self.classifier.load()
+        self.classifier.load(2)
         self.test_set = self.train_set[:2]
         for graph in self.test_set:
             self.classifier.predict(graph)
+            print(graph.rowNum)
+            print(graph.oracle)
+            print(graph.p_oracle)
 
 
 def readFile(train_set, label_set):
