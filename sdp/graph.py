@@ -32,9 +32,9 @@ class Graph(object):
         self.V = [] # Node set
         self.E = [] # Edge set
         self.headNodes = [] #head node index
+        self.topNodes = []
         self.oracle = [] # oracle transitions for this sent
         self.gold_feature = [] # gold features for this sent
-        self.p_E = []
         self.p_oracle = [] # predicted oracle
         self.V.append(Node(0, 'root', 'root', 'root', True))
         self.headNodes.append(0)

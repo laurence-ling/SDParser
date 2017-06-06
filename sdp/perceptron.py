@@ -25,7 +25,7 @@ class Perceptron(object):
     def predict(self, graph):
         self.state = 'P'
         item = self.beamSearch(graph)
-        graph.p_E = item.config.arcs
+        graph.E = item.config.arcs
         graph.p_oracle = item.action_list
 
     def getScore(self, feature):

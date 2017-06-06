@@ -8,32 +8,26 @@ class SemDepParser(object):
         self.train_set = []
         self.test_set = []
         self.label_set = set()
-        self.transition_set = []
+        self.transition_set = set()
         self.feature_set = set()
-
-    def loadSet(self):
-        self.transition_set += ['SHIFT', 'REDUCE', 'MEM', 'RECALL']
-        for label in self.label_set:
-            self.transition_set.append('ARC-' + label + '-SHIFT')
-            self.transition_set.append('ARC-' + label + '-REDUCE')
-            self.transition_set.append('ARC-' + label + '-MEM')
-            self.transition_set.append('ARC-' + label + '-RECALL')
-        self.classifier = Perceptron(self.transition_set)
 
     def preprocess(self):
         readFile(self.train_set, self.label_set)
-        self.loadSet()
         length = 0
+        idx = 0
         for graph in self.train_set:
             #print(graph.rowNum)
             config = Configuration(graph.V)
             graph.oracle = config.extractOracle(graph)
+            self.transition_set = self.transition_set.union(set(graph.oracle))
             length = max(length,len(graph.oracle))
             if graph.oracle[0] != 'SHIFT': # the first oracle is always SHIFT
                 print('not shift')
-            #if graph.rowNum == '#20015004':
+            if graph.rowNum[:4] == '#200':
+                idx += 1
             #print(graph.oracle)
         print('maximal oracle length', length)
+        print('transition set size', len(self.transition_set))
 
         for graph in self.train_set:
             config = Configuration(graph.V)
@@ -45,6 +39,9 @@ class SemDepParser(object):
                 graph.gold_feature.append((action, feature))
                 config.doAction(action)
         print('feature set', len(self.feature_set))
+        self.classifier = Perceptron(self.transition_set)
+        self.test_set = self.train_set[idx:]
+        self.train_set = self.train_set[:idx]
 
     def train(self):
         t1 = time.time()
@@ -65,6 +62,7 @@ class SemDepParser(object):
             print(graph.rowNum)
             print(graph.oracle)
             print(graph.p_oracle)
+        writeFile(self.test_set, 'resource/result.sdp')
 
 
 def readFile(train_set, label_set):
@@ -76,7 +74,7 @@ def readFile(train_set, label_set):
     for line in f.readlines():
         line = line.strip()
         if not line:
-            buildArc(table, graph)
+            convertTableToArc(table, graph)
             #graph.buildTable()
             for edge in graph.E:
                 label_set.add(edge.label)
@@ -99,14 +97,14 @@ def readFile(train_set, label_set):
             if line[5] == '+':
                 graph.headNodes.append(len(graph.V)-1)
             table.append(line[6:])
-    buildArc(table, graph)
+    convertTableToArc(table, graph)
     for edge in graph.E:
         label_set.add(edge.label)
     train_set.append(graph)
     print('train_set size', len(train_set))
     print('label_set size', len(label_set))
 
-def buildArc(table, graph):
+def convertTableToArc(table, graph):
     for i in range(len(table)):
         for j in range(len(table[0])):
             if table[i][j] == '_':
@@ -120,3 +118,46 @@ def buildArc(table, graph):
             else:
                 print(label, graph.rowNum)
             graph.E.append(Edge(graph.V[k], graph.V[i + 1], label))
+
+def convertArcToTable(graph):
+    dependent = {}
+    for edge in graph.E:
+        if edge.src.id == 0:
+            graph.topNodes.append(edge.dst.id)
+        else:
+            dependent.setdefault(edge.src.id, []).append(
+                (edge.dst.id, edge.label.split('_')[1]))
+    graph.headNodes = sorted(list(dependent.keys()))
+
+    table = []
+    for i in range(1, len(graph.V)):
+        row = ['_'] * len(graph.headNodes)
+        for j in range(len(graph.headNodes)):
+            for (dst, label) in dependent[graph.headNodes[j]]:
+                if dst == i:
+                    row[j] = label
+        table.append(row)
+    return table
+
+def writeFile(test_set, filename):
+    f = codecs.open(filename, 'w', 'utf-8')
+    for graph in test_set:
+        f.write(graph.rowNum + '\n')
+        table = convertArcToTable(graph)
+        lines = []
+        for i in range(len(table)):
+            node = graph.V[i+1]
+            row = [str(node.id), node.originForm, node.word, node.posTag]
+            if i + 1 in graph.topNodes:
+                row += ['+']
+            else:
+                row += ['-']
+            if i + 1 in graph.headNodes:
+                row += ['+']
+            else:
+                row += ['-']
+            row += table[i]
+            lines.append('\t'.join(row) + '\n')
+        f.writelines(lines)
+        f.write('\n')
+    f.close()
