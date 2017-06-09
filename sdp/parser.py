@@ -28,6 +28,8 @@ class SemDepParser(object):
             #print(graph.oracle)
         print('maximal oracle length', length)
         print('transition set size', len(self.transition_set))
+        self.test_set = self.train_set[idx:]
+        self.train_set = self.train_set[:idx]
 
         for graph in self.train_set:
             config = Configuration(graph.V)
@@ -39,15 +41,15 @@ class SemDepParser(object):
                 graph.gold_feature.append((action, feature))
                 config.doAction(action)
         print('feature set', len(self.feature_set))
-        self.classifier = Perceptron(self.transition_set)
-        self.test_set = self.train_set[idx:]
-        self.train_set = self.train_set[:idx]
+        self.classifier = Perceptron(self.transition_set, self.feature_set)
+
 
     def train(self):
         t1 = time.time()
-        for T in range(3):
+        for T in range(10):
+            print('round', T)
             random.shuffle(self.train_set)
-            for graph in self.train_set[:1000]:
+            for graph in self.train_set:
                 print(graph.rowNum)
                 self.classifier.train(graph)
             self.classifier.store(T)
@@ -93,7 +95,7 @@ def readFile(train_set, label_set):
                 rootcnt += 1
                 if rootcnt > 1:
                     print(len(train_set), "multiple root")
-                graph.E.append(Edge(graph.V[0], graph.V[len(graph.V)-1], 'L_'))
+                graph.E.append(Edge(graph.V[0], graph.V[len(graph.V)-1], 'R_'))
             if line[5] == '+':
                 graph.headNodes.append(len(graph.V)-1)
             table.append(line[6:])

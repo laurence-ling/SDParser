@@ -4,9 +4,9 @@ import random
 import pickle
 
 class Perceptron(object):
-    def __init__(self, _set):
-        self.weight = {}
-        self.action_set = _set
+    def __init__(self, l_set, f_set):
+        self.action_set = l_set
+        self.weight = dict.fromkeys(f_set, 0)
 
     def store(self, T):
         f = open('weight' + str(T), 'wb')
@@ -19,8 +19,13 @@ class Perceptron(object):
     def train(self, graph):
         self.state = 'T'
         item = self.beamSearch(graph)
-        if self.state != 'U':
-            self.update(item.feature_vec, graph)
+        if self.state == 'U':
+            return
+        i = 0
+        for i in range(len(graph.oracle)):
+            if not graph.oracle[i] == item.action_list[i]:
+                break
+        self.update(item.feature_vec[i:], graph.gold_feature[i:])
 
     def predict(self, graph):
         self.state = 'P'
@@ -35,20 +40,18 @@ class Perceptron(object):
                 score += self.weight[f]
         return score
 
-    def update(self, features, graph):
+    def update(self, _train, _gold):
         gold = []
-        for ele in graph.gold_feature:
+        train = []
+        for ele in _gold:
             gold += ele[1]
+        for ele in _train:
+            train += ele[1]
         for f in gold:
-            if f in self.weight.keys():
-                self.weight[f] += 1
-            else:
-                self.weight[f] = 1
-        for f in features:
+            self.weight[f] += 1
+        for f in train:
             if f in self.weight.keys():
                 self.weight[f] -= 1
-            else:
-                self.weight[f] = -1
 
     def canEarlyUpdate(self):
         return False
@@ -117,4 +120,4 @@ class Item(object):
     def add(self, score, action, feature):
         self.score += score
         self.action_list.append(action)
-        self.feature_vec += feature
+        self.feature_vec += (action, feature)
