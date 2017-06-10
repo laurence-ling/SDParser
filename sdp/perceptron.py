@@ -19,13 +19,7 @@ class Perceptron(object):
     def train(self, graph):
         self.state = 'T'
         item = self.beamSearch(graph)
-        if self.state == 'U':
-            return
-        i = 0
-        for i in range(len(graph.oracle)):
-            if not graph.oracle[i] == item.action_list[i]:
-                break
-        self.update(item.feature_vec[i:], graph.gold_feature[i:])
+        self.update(graph, item)
 
     def predict(self, graph):
         self.state = 'P'
@@ -40,12 +34,17 @@ class Perceptron(object):
                 score += self.weight[f]
         return score
 
-    def update(self, _train, _gold):
+    def update(self, graph, item):
+        i = 0
+        length = min(len(graph.p_oracle), len(item.action_list))
+        for i in range(length):
+            if not graph.oracle[i] == item.action_list[i]:
+                break
         gold = []
         train = []
-        for ele in _gold:
+        for ele in graph.gold_feature[i:]:
             gold += ele[1]
-        for ele in _train:
+        for ele in item.feature_vec[i:]:
             train += ele[1]
         for f in gold:
             self.weight[f] += 1
@@ -53,8 +52,17 @@ class Perceptron(object):
             if f in self.weight.keys():
                 self.weight[f] -= 1
 
-    def canEarlyUpdate(self):
-        return False
+    def canEarlyUpdate(self, graph, agenda, i):
+        flag = False
+        for item in agenda:
+            if item.promising and item.action_list[i] == graph.oracle[i]:
+                item.promising = True
+                flag = True
+            else:
+                item.promising = False
+        if flag:
+            return False
+        return True
 
     def legalAction(self, config):
         legal = self.action_set
@@ -69,17 +77,18 @@ class Perceptron(object):
 
     def beamSearch(self, graph):
         agenda = [Item(graph)]
-        terminate = []
         B = 4
         depth = 186 # maximal searching depth
         if self.state == 'T':
             depth = len(graph.oracle)
         for i in range(1, depth):
             new_agenda = []
+            all_terminate = True
             for item in agenda:
                 if item.config.isTerminated():
-                    terminate.append(item)
+                    new_agenda.append(item)
                     continue
+                all_terminate = False
                 candidates = []
                 legal_action = self.legalAction(item.config)
                 for action in legal_action:
@@ -96,17 +105,14 @@ class Perceptron(object):
                     else:
                         new_item.config.doAction(c[1])
                     new_agenda.append(new_item)
-            if not new_agenda: # all terminated
+            if all_terminate: # all terminated
                 break
-            new_agenda += terminate # also consider terminated ones
             random.shuffle(new_agenda)
             agenda = sorted(new_agenda, key=lambda x: x.score, reverse=True)[:B]
             # perform early update
-            if self.state == 'T' and self.canEarlyUpdate():
-                item = max(agenda, key=lambda x: x.score)
-                self.update(item.feature_vec, graph)
-                self.state = 'U'
-                return item
+            if self.state == 'T' and self.canEarlyUpdate(graph, agenda, i):
+                return max(agenda, key=lambda x: x.score)
+
         return max(agenda, key=lambda x: x.score)
 
 
@@ -117,6 +123,7 @@ class Item(object):
         self.action_list = ['SHIFT']
         self.feature_vec = []
         self.score = 0
+        self.promising = True
     def add(self, score, action, feature):
         self.score += score
         self.action_list.append(action)

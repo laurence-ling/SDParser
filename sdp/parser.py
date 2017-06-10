@@ -57,14 +57,13 @@ class SemDepParser(object):
         print('training finished in %f s' % (t2 - t1))
 
     def parse(self):
-        self.classifier.load(2)
-        self.test_set = self.train_set[:2]
+        self.classifier.load(5)
         for graph in self.test_set:
             self.classifier.predict(graph)
             print(graph.rowNum)
             print(graph.oracle)
             print(graph.p_oracle)
-        writeFile(self.test_set, 'resource/result.sdp')
+        writeFile(self.test_set, 'resource/result' + str(5))
 
 
 def readFile(train_set, label_set):

@@ -1,6 +1,6 @@
 from sdp import *
 parser = parser.SemDepParser()
 parser.preprocess()
-#parser.train()
+parser.parse()
 
 #20015004
