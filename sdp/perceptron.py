@@ -9,16 +9,17 @@ class Perceptron(object):
         self.weight = dict.fromkeys(f_set, 0)
 
     def store(self, T):
-        f = open('weight' + str(T), 'wb')
+        f = open('weight/weight' + str(T), 'wb')
         pickle.dump(self.weight, f)
 
     def load(self, T):
-        f = open('weight' + str(T), 'rb')
+        f = open('weight/weight' + str(T), 'rb')
         self.weight = pickle.load(f)
 
     def train(self, graph):
         self.state = 'T'
         item = self.beamSearch(graph)
+        graph.p_oracle = item.action_list
         self.update(graph, item)
 
     def predict(self, graph):
@@ -42,9 +43,9 @@ class Perceptron(object):
                 break
         gold = []
         train = []
-        for ele in graph.gold_feature[i:]:
+        for ele in graph.gold_feature[i-1:]: # the gold_feature exclude 0-oracle 'shift', so it is i-1
             gold += ele[1]
-        for ele in item.feature_vec[i:]:
+        for ele in item.feature_vec[i-1:]:
             train += ele[1]
         for f in gold:
             self.weight[f] += 1
@@ -100,18 +101,15 @@ class Perceptron(object):
                 for c in candidates:
                     new_item = copy.deepcopy(item)
                     new_item.add(c[0], c[1], c[2])
-                    if self.state == 'T':
-                        new_item.config.doAction(graph.oracle[i])
-                    else:
-                        new_item.config.doAction(c[1])
+                    new_item.config.doAction(c[1])
                     new_agenda.append(new_item)
             if all_terminate: # all terminated
                 break
             random.shuffle(new_agenda)
             agenda = sorted(new_agenda, key=lambda x: x.score, reverse=True)[:B]
             # perform early update
-            if self.state == 'T' and self.canEarlyUpdate(graph, agenda, i):
-                return max(agenda, key=lambda x: x.score)
+            #if self.state == 'T' and self.canEarlyUpdate(graph, agenda, i):
+             #   return max(agenda, key=lambda x: x.score)
 
         return max(agenda, key=lambda x: x.score)
 
@@ -127,4 +125,4 @@ class Item(object):
     def add(self, score, action, feature):
         self.score += score
         self.action_list.append(action)
-        self.feature_vec += (action, feature)
+        self.feature_vec.append((action, feature))

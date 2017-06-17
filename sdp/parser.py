@@ -12,7 +12,7 @@ class SemDepParser(object):
         self.feature_set = set()
 
     def preprocess(self):
-        readFile(self.train_set, self.label_set)
+        readTrainFile(self.train_set, self.label_set)
         length = 0
         idx = 0
         for graph in self.train_set:
@@ -28,8 +28,13 @@ class SemDepParser(object):
             #print(graph.oracle)
         print('maximal oracle length', length)
         print('transition set size', len(self.transition_set))
+        f = open('weight/transition_set', 'wb')
+        pickle.dump(self.transition_set, f)
+        f.close()
         self.test_set = self.train_set[idx:]
         self.train_set = self.train_set[:idx]
+        print('training set', len(self.train_set))
+        print('development set', len(self.test_set))
 
         for graph in self.train_set:
             config = Configuration(graph.V)
@@ -45,33 +50,40 @@ class SemDepParser(object):
 
 
     def train(self):
+        self.preprocess()
         t1 = time.time()
         for T in range(10):
             print('round', T)
             random.shuffle(self.train_set)
             for graph in self.train_set:
-                print(graph.rowNum)
                 self.classifier.train(graph)
+                print(graph.rowNum)
+                print(graph.oracle)
+                print(graph.p_oracle)
             self.classifier.store(T)
         t2 = time.time()
         print('training finished in %f s' % (t2 - t1))
 
     def parse(self):
-        self.classifier.load(5)
+        readTestFile(self.test_set)
+        f = open('weight/transition_set', 'rb')
+        self.transition_set = pickle.load(f)
+        self.classifier = Perceptron(self.transition_set, [])
+        self.classifier.load('5-p')
         for graph in self.test_set:
             self.classifier.predict(graph)
             print(graph.rowNum)
             print(graph.oracle)
             print(graph.p_oracle)
-        writeFile(self.test_set, 'resource/result' + str(5))
+        writeFile(self.test_set, 'resource/result' + str('5-p'))
 
 
-def readFile(train_set, label_set):
-    path = 'G:\课程资料\大三（下）\EMNLP\\assignment2\dm.sdp'
+def readTrainFile(train_set, label_set):
+    path = 'resource/dm.sdp'
     f = codecs.open(path, 'r', encoding='utf-8')
     graph = Graph()
     table = []
-    rootcnt = 0
+    root_cnt = 0
     for line in f.readlines():
         line = line.strip()
         if not line:
@@ -80,19 +92,19 @@ def readFile(train_set, label_set):
             for edge in graph.E:
                 label_set.add(edge.label)
             train_set.append(graph)
-            if rootcnt == 0:
+            if root_cnt == 0:
                 print(graph.rowNum, 'no root')
             graph = Graph()
             table = []
-            rootcnt = 0
+            root_cnt = 0
         elif line[0] == '#':
             graph.rowNum = line
         else:
             line = line.split('\t')
             graph.V.append(Node(int(line[0]), line[1], line[2], line[3]))
             if line[4] == '+':
-                rootcnt += 1
-                if rootcnt > 1:
+                root_cnt += 1
+                if root_cnt > 1:
                     print(len(train_set), "multiple root")
                 graph.E.append(Edge(graph.V[0], graph.V[len(graph.V)-1], 'R_'))
             if line[5] == '+':
@@ -162,3 +174,20 @@ def writeFile(test_set, filename):
         f.writelines(lines)
         f.write('\n')
     f.close()
+
+def readTestFile(test_set):
+    path = 'resource/noAns.sdp'
+    f = codecs.open(path, 'r', 'utf-8')
+    graph = Graph()
+    for line in f.readlines():
+        line = line.strip()
+        if not line:
+            test_set.append(graph)
+            graph = Graph()
+        elif line[0] == '#':
+            graph.rowNum = line
+        else:
+            line = line.split('\t')
+            graph.V.append(Node(int(line[0]), line[1], line[2], line[3]))
+    test_set.append(graph)
+    print('test set size ', len(test_set))
