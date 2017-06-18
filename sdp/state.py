@@ -199,48 +199,62 @@ class Configuration(object):
     def leftmostParent(self, node):
         parents = [edge.src for edge in self.arcs if edge.dst.id == node.id]
         if not parents:
-            return None
-        return min(parents, key=lambda n: n.id)
+            return (None, None)
+        result = min(parents, key=lambda n: n.id)
+        label = [edge.label for edge in self.arcs if edge.dst.id == node.id and edge.src.id == result.id]
+        return (result, label[0])
 
     def rightmostParent(self, node):
         parents = [edge.src for edge in self.arcs if edge.dst.id == node.id]
         if not parents:
-            return None
-        return max(parents, key=lambda n: n.id)
+            return (None, None)
+        result = max(parents, key=lambda n: n.id)
+        label = [edge.label for edge in self.arcs if edge.dst.id == node.id and edge.src.id == result.id]
+        return (result, label[0])
 
     def leftmostChild(self, node):
         children = [edge.dst for edge in self.arcs if edge.src.id == node.id]
         if not children:
-            return None
-        return min(children, key=lambda n: n.id)
+            return (None, None)
+        result = min(children, key=lambda n: n.id)
+        label = [edge.label for edge in self.arcs if edge.src.id == node.id and edge.dst.id == result.id]
+        return (result, label[0])
 
     def rightmostChild(self, node):
         children = [edge.dst for edge in self.arcs if edge.src.id == node.id]
         if not children:
-            return None
-        return max(children, key=lambda n: n.id)
+            return (None, None)
+        result = max(children, key=lambda n: n.id)
+        label = [edge.label for edge in self.arcs if edge.src.id == node.id and edge.dst.id == result.id]
+        return (result, label[0])
 
     def unigram(self, tag, node):
         v = []
         v.append(tag + 'w-' + node.word)
         v.append(tag + 't-' + node.posTag)
         v.append(tag + 'wt-' + node.word + node.posTag)
-        lmParent = self.leftmostParent(node)
-        rmParent = self.rightmostParent(node)
-        lmChild = self.leftmostChild(node)
-        rmChild = self.rightmostChild(node)
+        lmParent, lpLabel = self.leftmostParent(node)
+        rmParent, rpLabel = self.rightmostParent(node)
+        lmChild, lcLabel = self.leftmostChild(node)
+        rmChild, rcLabel = self.rightmostChild(node)
         if lmParent is not None:
             v.append(tag + 'wLPt-' + node.word + lmParent.posTag)
             v.append(tag + 'tLPt-' + node.posTag + '-' + lmParent.posTag)
+            v.append(tag + 'wLPl-' + node.word + '-' + lpLabel)
         if rmParent is not None:
             v.append(tag + 'wRPt-' + node.word + rmParent.posTag)
             v.append(tag + 'tRPt-' + node.posTag + '-' + rmParent.posTag)
+            v.append(tag + 'wRPl-' + node.word + '-' + rpLabel)
         if lmChild is not None:
             v.append(tag + 'wLCt-' + node.word + lmChild.posTag)
             v.append(tag + 'tLCt-' + node.posTag + '-' + lmChild.posTag)
+            v.append(tag + 'wLCw-' + node.word + '-' + lmChild.word)
+            v.append(tag + 'wLCl-' + node.word + '-' + lcLabel)
         if rmChild is not None:
             v.append(tag + 'wRCt-' + node.word + rmChild.posTag)
             v.append(tag + 'tRCt-' + node.posTag + '-' + rmChild.posTag)
+            v.append(tag + 'wRCw-' + node.word + '-' + rmChild.word)
+            v.append(tag + 'wRCl-' + node.word + '-' + rcLabel)
         return v
 
     def pair(self, t1, x, t2, y):
@@ -254,9 +268,9 @@ class Configuration(object):
         v.append(t1 + 't' + t2 + 'wt-' + x.posTag + '-' + y.word + y.posTag)
         v.append(t1 + 't' + t2 + 'w-' + x.posTag + '-' + y.word)
         v.append(t1 + 'w' + t2 + 't-' + x.word + '-' + y.posTag)
-        x_lc = self.leftmostChild(x)
-        x_rc = self.rightmostChild(x)
-        y_lc = self.leftmostChild(y)
+        x_lc, xlc_label = self.leftmostChild(x)
+        x_rc, xrc_label = self.rightmostChild(x)
+        y_lc, ylc_label = self.leftmostChild(y)
         if x_lc is not None:
             v.append(t1 + 'w' + t2 + 'w' + 'XLCt-' + x.word + '-' + y.word + x_lc.posTag)
             v.append(t1 + 'p' + t2 + 'p' + 'XLCt-' + x.posTag + '-' + y.posTag + '-' + x_lc.posTag)
